@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  chatgptslackbot:
+    build:
+      context: .
+    image: chatgptslackbot
+    restart: always
+    container_name: chatgptslackbot
+    env_file:
+      - ./.env
+    ports:
+      - "4000:4000"
