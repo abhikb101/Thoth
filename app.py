@@ -10,7 +10,7 @@ from slack_sdk.oauth.state_store import FileOAuthStateStore
 import logging
 from settings import SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, SLACK_SIGNING_SECRET, OPENAI_API_KEY
 from gpt import chatgpt_refresh
-from handlers.events import handle_mention, handle_summary
+from handlers.events import handle_mention, handle_summary, handle_ask_thoth
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -29,16 +29,26 @@ app = App(signing_secret=SLACK_SIGNING_SECRET,
 
 @app.event("app_mention")
 def app_mention(event, say):
-    handle_mention(event, say)
+    response = handle_mention(event)
+    say(response['response'], thread_ts=response['thread_ts'])
+
+@app.event("message")
+def app_message(event, say):
+    response = handle_mention(event)
+    say(response['response'], thread_ts=response['thread_ts'])
 
 @app.message("summarize this")
-def app_summary(event, say):
+def summary_this(event, say):
     handle_summary(event, say)
 
 @app.message("create jira")
-def app_jira(event, say):
-    handle_jira(event, say)
+def create_jira(event, say):
+    resp=handle_jira(event)
+    say(send, thread_ts=event.get("thread_ts") or event.get("ts"))
 
+@app.message("ask thoth")
+def ask_thoth(event, say):
+    handle_ask_thoth(event, say)
 
 @app.message("knock knock")
 def ask_who(message, say):

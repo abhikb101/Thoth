@@ -3,9 +3,6 @@ import os
 
 config = dotenv_values("vendorlabs.env")
 
-print("---------------")
-print(config)
-print(config.get("SLACK_SIGNING_SECRET"))
 SLACK_CLIENT_ID=config.get("SLACK_CLIENT_ID")
 SLACK_CLIENT_SECRET=config.get("SLACK_CLIENT_SECRET")
 SLACK_SIGNING_SECRET=config.get("SLACK_SIGNING_SECRET")
