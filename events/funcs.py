@@ -109,27 +109,22 @@ def summarize_data(thread_ts, channel):
     # ref = {"id": uuid, "text": data[uuid]['text'], "reflections": response, "users": data[uuid].get('users', None)}
     return response
 
-def handle_event(event, say, is_mention):
+def handle_event(event, is_mention):
     prompt = re.sub("\\s<@[^, ]*|^<@[^, ]*", "", event["text"])
-    # Each thread should be a separate conversation
     convo_id = event.get("thread_ts") or event.get("ts") or ""
     try:
         response = chatbot.ask(prompt, convo_id=convo_id)
         user = event["user"]
-
         if is_mention:
-            send = f"<@{user}> {response}"
-        else:
-            send = response
+            response = f"<@{user}> {response}"
     except Exception as e:
         print(e, file=sys.stderr)
-        send = "We are experiencing exceptionally high demand. Please, try again."
+        response = "We are experiencing exceptionally high demand. Please, try again."
 
     if is_mention:
-        # Get the `ts` value of the original message
         original_message_ts = event["ts"]
     else:
         original_message_ts = None
 
     # Use the `app.event` method to send a message
-    say(send, thread_ts=original_message_ts)
+    return {"response": response, "thread_ts": original_message_ts}

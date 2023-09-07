@@ -11,6 +11,8 @@ python-dotenv = "==1.0.0"
 firebase-admin = "==6.1.0"
 firebase = "==4.0.1"
 jira = "==3.5.1"
+llama-index = "*"
+nltk = "*"
 
 [dev-packages]
 
