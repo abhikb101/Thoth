@@ -1,0 +1,1 @@
+user_pattern = r"<@[A-Z\d]+>"

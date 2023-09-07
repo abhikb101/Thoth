@@ -1,116 +1,51 @@
 import os
 import re
 import sys
-import time
 from threading import Thread
-import re
-from revChatGPT.V3 import Chatbot
+
 from slack_bolt import App
-from dotenv import load_dotenv
-from funcs import get_all_messages, summarize_data, get_user_by_id
-from jira import JIRA
+from slack_bolt.oauth.oauth_settings import OAuthSettings
+from slack_sdk.oauth.installation_store import FileInstallationStore
+from slack_sdk.oauth.state_store import FileOAuthStateStore
+import logging
+from settings import SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, SLACK_SIGNING_SECRET, OPENAI_API_KEY
+from gpt import chatgpt_refresh
+from handlers.events import handle_mention, handle_summary
 
-pattern = r"<@[A-Z\d]+>"
+logging.basicConfig(level=logging.DEBUG)
 
-load_dotenv()
-ChatGPTConfig = {
-    "api_key": os.getenv("OPENAI_API_KEY"),
-}
-JiraApiKey = os.getenv("JIRA_API_KEY")
-jiraOptions = {'server': "https://venlabs.atlassian.net/"}
-JiraEmail = os.getenv("JIRA_EMAIL")
+oauth_settings = OAuthSettings(
+    client_id=SLACK_CLIENT_ID,
+    client_secret=SLACK_CLIENT_SECRET,
+    scopes=["channels:read", "groups:read", "chat:write", "app_mentions:read","incoming-webhook"],
+    installation_store=FileInstallationStore(base_dir="./data/installations"),
+    state_store=FileOAuthStateStore(expiration_seconds=600, base_dir="./data/states")
+)
 
-jira = JIRA(options=jiraOptions, basic_auth=(JiraEmail, JiraApiKey))
-
-issue_dict = {
-    'project': {'key': 'VEN'},
-    'summary': '',
-    'description': '',
-    'issuetype': {'name': 'Bug'},
-}
-
-if os.getenv("OPENAI_ENGINE"):
-    ChatGPTConfig["engine"] = os.getenv("OPENAI_ENGINE")
-
-app = App()
-chatbot = Chatbot(**ChatGPTConfig)
-
-def create_jira(prompt):
-    issue_dict['summary'] = prompt
-    issue_dict['description'] = prompt
-    new_issue = jira.create_issue(fields=issue_dict)
-
-def is_jira_issue_intent(prompt):
-    if "jira" in prompt.lower():
-        return True
-    return False
-
-def handle_event(event, say, is_mention):
-    prompt = re.sub("\\s<@[^, ]*|^<@[^, ]*", "", event["text"])
-
-    # Each thread should be a separate conversation
-    convo_id = event.get("thread_ts") or event.get("ts") or ""
-
-    try:
-        response = chatbot.ask(prompt, convo_id=convo_id)
-        user = event["user"]
-
-        if is_mention:
-            send = f"<@{user}> {response}"
-        else:
-            send = response
-    except Exception as e:
-        print(e, file=sys.stderr)
-        send = "We are experiencing exceptionally high demand. Please, try again."
-
-    if is_mention:
-        # Get the `ts` value of the original message
-        original_message_ts = event["ts"]
-    else:
-        original_message_ts = None
-
-    # Use the `app.event` method to send a message
-    say(send, thread_ts=original_message_ts)
+app = App(signing_secret=SLACK_SIGNING_SECRET,
+    oauth_settings=oauth_settings,
+    logger=logging.getLogger('tcpserver'))
 
 
 @app.event("app_mention")
-def handle_mention(event, say):
-    if "analyze this" in event['text'].lower():
-        splitted = event['text'].split("/")
-        channel_id = splitted[4]
-        thread_ts = splitted[-1].split("?")[1].split("&")[0].split("=")[1]
-        get_all_messages(thread_ts, channel_id)
-        return
-    
-    if "summarize this" in event['text'].lower():
-        splitted = event['text'].split("/")
-        channel_id = splitted[4]
-        thread_ts = splitted[-1].split("?")[1].split("&")[0].split("=")[1]
-        resp = summarize_data(thread_ts, channel_id)
-        say(resp, thread_ts=event.get("thread_ts") or event.get("ts"))
-        return
-        
-    if is_jira_issue_intent(event['text']):
-        create_jira(event['text'])
-        send = "It's done"
-        say(send, thread_ts=event.get("thread_ts") or event.get("ts"))
-        print(is_jira_issue_intent(event['text']), file=sys.stderr)
-        return
+def app_mention(event, say):
+    handle_mention(event, say)
 
-    handle_event(event, say, is_mention=True)
+@app.message("summarize this")
+def app_summary(event, say):
+    handle_summary(event, say)
+
+@app.message("create jira")
+def app_jira(event, say):
+    handle_jira(event, say)
 
 
-@app.event("message")
-def handle_message(event, say):
-    print(event, say)
-
-def chatgpt_refresh():
-    while True:
-        time.sleep(60)
-
+@app.message("knock knock")
+def ask_who(message, say):
+    say("_Who's there?_")
 
 if __name__ == "__main__":
     print("Bot Started!", file=sys.stderr)
     thread = Thread(target=chatgpt_refresh)
     thread.start()
-    app.start(8080)  # POST http://localhost:4000/slack/events
+    app.start(4000)  # POST http://localhost:4000/slack/events
