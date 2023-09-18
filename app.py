@@ -32,10 +32,6 @@ def app_mention(event, say):
     response = handle_mention(event)
     say(response['response'], thread_ts=response['thread_ts'])
 
-@app.event("message")
-def app_message(event, say):
-    response = handle_mention(event)
-    say(response['response'], thread_ts=response['thread_ts'])
 
 @app.message("summarize this")
 def summary_this(event, say):
@@ -48,7 +44,8 @@ def create_jira(event, say):
 
 @app.message("ask thoth")
 def ask_thoth(event, say):
-    handle_ask_thoth(event, say)
+    resp = handle_ask_thoth(event)
+    say(resp, thread_ts=event.get("thread_ts") or event.get("ts"))
 
 @app.message("knock knock")
 def ask_who(message, say):

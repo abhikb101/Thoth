@@ -1,6 +1,9 @@
 from settings import OPENAI_API_KEY, OPENAI_ENGINE
 from revChatGPT.V3 import Chatbot
 import time
+import openai
+
+openai.api_key = OPENAI_API_KEY
 
 if OPENAI_ENGINE:
     ChatGPTConfig["engine"] = os.getenv("OPENAI_ENGINE")
